@@ -1,0 +1,11 @@
+Package: kt
+Type: Package
+Title: Bioinformatic Analysis of KT Protein Biodiversity
+Version: 0.1.0
+Authors@R: person("Artem", "Babaian", email = "a.babaian@utoronto.ca",
+    role = c("aut", "cre"))
+Description: Bioinformatic analysis of KT protein Biodiversity.
+License: AGPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.0.0
