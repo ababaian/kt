@@ -1,11 +1,31 @@
 Package: kt
 Type: Package
-Title: Bioinformatic Analysis of KT Protein Biodiversity
+Title: KT Logan
 Version: 0.1.0
+Author: Artem Babaian
+Maintainer: Artem Babaian <a.babaian@utoronto.ca>
 Authors@R: person("Artem", "Babaian", email = "a.babaian@utoronto.ca",
     role = c("aut", "cre"))
-Description: Bioinformatic analysis of KT protein Biodiversity.
+Description: Computational analysis of KT protein biodiversity.
+Depends: R (>= 4.0.0)
+Imports:
+    data.table (>= 1.14.0),
+    dplyr,
+    ggplot2,
+    scales,
+    igraph,
+    viridis,
+    stringr,
+    RCy3
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    devtools,
+    roxygen2,
+    shiny,
+    plotly
 License: AGPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.0.0
+RoxygenNote: 7.3.2
