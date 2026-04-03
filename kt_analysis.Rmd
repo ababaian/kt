@@ -1,0 +1,838 @@
+---
+title: "KT Protein Biodiversity Analysis"
+author: "Artem Babaian"
+date: "2026-03-30"
+output:
+  html_document:
+    number_sections: true
+    theme: flatly
+    highlight: tango
+    code_folding: show
+    fig_width: 10
+    fig_height: 6
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Initialize Workspace
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = TRUE,
+  message = TRUE,
+  fig.align = "center",
+  cache = TRUE,
+  cache.lazy = FALSE,
+  results = "console"  # Default: send text output to console
+)
+
+# Load required packages
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tibble)
+library(scales)
+library(kt)
+library(data.table)
+
+# Set theme for plots
+theme_set(theme_minimal() +
+          theme(plot.title = element_text(hjust = 0.5)))
+
+
+```
+
+# Package Building (Manual Run Only)
+
+```{r package_build, eval=FALSE}
+# Package development commands - run manually when needed
+library(devtools)
+library(roxygen2)
+
+# Generate documentation from roxygen comments
+document()
+
+# Check package for issues
+check()
+
+# Install the package locally
+# install()
+roxygenize()
+
+# Load the package after installation
+library(kt)
+```
+
+# Fasta Files
+
+## Load KT Sequence Data
+
+```{r load_kt_data, results="inline"}
+# Load KT1 sequences (clustered representatives)
+kt1.df <- load_kt_fasta(
+  file_path = "inst/extdata/kt1/kt1.fa",
+  dataset_name = "kt1",
+  package_data = FALSE
+)
+
+# Load KT0 sequences (pre-clustered sequences)
+kt0.df <- load_kt_fasta(
+  file_path = "inst/extdata/kt0/kt0.preclust.fa",
+  dataset_name = "kt0",
+  package_data = FALSE
+)
+
+```
+
+## FASTA Data Visualization
+
+```{r fasta_visualizations, fig.width=12, fig.height=8, results="console"}
+# Family count comparison between KT1 and KT0
+family_plot <- plot_family_count(
+  KT1 = kt1.df,
+  KT0 = kt0.df,
+  title = "KT Family Distribution: KT1 vs KT0",
+  top_n = 12
+)
+print(family_plot)
+```
+
+```{r organism_comparison, fig.width=12, fig.height=8, results="console"}
+# Organism count comparison
+organism_plot <- plot_organism_count(
+  KT1 = kt1.df,
+  KT0 = kt0.df,
+  title = "Organism Distribution: KT1 vs KT0",
+  top_n = 12,
+  shorten_names = TRUE
+)
+print(organism_plot)
+```
+
+```{r length_distributions, fig.width=12, fig.height=6, results="console"}
+# Sequence length distribution for all families
+length_all_plot <- plot_family_length(
+  data = kt1.df,
+  family = "All",
+  title = "KT1 Sequence Length Distribution - All Families",
+  bins = 40,
+  show_stats = TRUE
+)
+print(length_all_plot)
+```
+
+```{r length_by_family, fig.width=14, fig.height=10, results="console"}
+# Length distribution separated by family
+length_facet_plot <- plot_family_length(
+  data = kt1.df,
+  facet_families = TRUE,
+  title = "KT1 Sequence Length Distribution by Family",
+  bins = 25,
+  show_stats = FALSE
+)
+print(length_facet_plot)
+```
+
+## Load UCLUST Clustering Data
+
+```{r load_clustering_data, results="console"}
+# Load sorted UCLUST clustering output (S records removed, sorted by cluster_id)
+kt1.uclust <- load_uclust(
+  file_path = "inst/extdata/kt1/kt1.id90.sorted.uc",
+  include_seeds = FALSE,  # Using C records instead of S records for centroids
+  include_hits = TRUE
+)
+
+```
+
+## Clustering Analysis and Visualization
+
+```{r cluster_size_analysis, fig.width=12, fig.height=8, results="console"}
+# Analyze cluster size distribution
+cluster_stats <- get_cluster_statistics(kt1.uclust)
+#print("=== Clustering Summary ===")
+#print(cluster_stats$summary)
+
+# Create cluster size histogram
+cluster_plot <- plot_cluster_counts(
+  clustering_data = kt1.uclust,
+  title = "KT1 Cluster Size Distribution",
+  bins = 30,
+  show_stats = TRUE
+)
+print(cluster_plot)
+```
+
+```{r cluster_analysis_detailed, fig.width=14, fig.height=10, results="console"}
+# Detailed analysis: log scale and by family
+cluster_log_plot <- plot_cluster_counts(
+  clustering_data = kt1.uclust,
+  title = "KT1 Cluster Sizes (Log Scale)",
+  log_scale = TRUE,
+  bins = 25,
+  show_stats = FALSE
+)
+
+cluster_family_plot <- plot_cluster_counts(
+  clustering_data = kt1.uclust,
+  title = "Cluster Size Distribution",
+  facet_by = "kt_family",
+  bins = 20,
+  show_stats = FALSE,
+  min_cluster_size = 1
+)
+
+print(cluster_log_plot)
+print(cluster_family_plot)
+```
+
+```{r cluster_identity_analysis, fig.width=12, fig.height=8, results="console"}
+# Cluster size vs identity relationship
+identity_plot <- plot_cluster_size_identity(
+  clustering_data = kt1.uclust,
+  min_cluster_size = 2,
+  color_by = "kt_family"
+)
+print(identity_plot)
+
+# Display family-wise clustering statistics
+print("=== Family-wise Clustering Statistics ===")
+print(cluster_stats$family_stats)
+
+print("\n=== Top 10 Largest Clusters ===")
+print(cluster_stats$top_clusters)
+```
+
+## Load All-vs-All Alignment Data
+
+```{r load_alignment_data, results="console"}
+# Load USEARCH allpairs alignment output
+kt1.alignments <- load_kt_alignment(
+  file_path = "inst/extdata/kt1/kt1.aln",
+  include_self = FALSE,  # Remove self-alignments
+  min_identity = 25,     # Minimum 25% identity (as per USEARCH parameters)
+  min_length = 50        # Minimum alignment length filter
+)
+
+print("All-vs-All Alignment Data Loaded:")
+#tr(kt1.alignments)
+
+# Get alignment summary statistics
+alignment_summary <- summarize_alignment(kt1.alignments)
+#print("Alignment Summary:")
+#print(alignment_summary)
+
+# Check for reciprocal alignments
+#print("\n=== Reciprocal Alignment Analysis ===")
+reciprocal_pairs <- kt1.alignments[, .(
+  pair1 = paste(pmin(query_accession, subject_accession),
+                pmax(query_accession, subject_accession), sep = "_"),
+  query = query_accession,
+  subject = subject_accession,
+  identity = percent_identity
+)]
+
+# Count unique pairs vs total alignments
+unique_pairs <- uniqueN(reciprocal_pairs$pair1)
+total_alignments <- nrow(reciprocal_pairs)
+
+#print(paste("Total alignments:", total_alignments))
+#print(paste("Unique protein pairs:", unique_pairs))
+#print(paste("Reciprocal ratio:", round(total_alignments / unique_pairs, 2)))
+
+if (total_alignments / unique_pairs > 1.5) {
+  print("Most pairs have reciprocal alignments - graph should be undirected")
+} else {
+  print("Few reciprocal alignments found - data appears to be already deduplicated")
+}
+
+```
+
+## High-Quality Alignments Analysis
+
+```{r high_quality_alignments, results="console"}
+# Filter for high-quality alignments
+hq_alignments <- filter_alignments(
+  kt1.alignments,
+  min_identity = 30,
+  min_length = 100,
+  max_evalue = 1e-10
+)
+
+print(paste("High-quality alignments:", nrow(hq_alignments)))
+
+# Summarize by family pairs
+family_stats <- summarize_alignment(hq_alignments, by_family = TRUE)
+# print("Top family pair alignments:")
+print(family_stats)
+
+```
+
+# Network Analysis and Visualization
+
+## Setup Network Packages
+
+```{r setup_network_packages, results="console"}
+# Load packages
+library(RCy3)
+library(igraph)
+library(viridis)
+
+# Check if Cytoscape is running
+cytoscapePing()
+```
+
+## Create Network Graph from Alignments
+
+```{r create_network_graph, results="console"}
+# Create network graph from high-quality alignments
+g <- create_kt_graph(
+  alignment_data = hq_alignments,
+  layout_method = "kamada.kawai",
+  layout_iterations = 10000
+)
+```
+
+## Add KT0 Cluster Member Counts
+
+```{r add_kt0_member_counts, results="console"}
+
+# Count KT0 sequences per centroid from clustering data
+# Need to count both: 1) centroid itself if from kt0, 2) H records from kt0
+
+# Get centroids and check if they're from kt0
+centroids <- kt1.uclust[record_type == "C", .(centroid_accession = accession,
+                                              cluster_id,
+                                              centroid_from_kt0 = (search_group == "kt"))]
+
+# Get members (H records) from kt0
+members <- kt1.uclust[record_type == "H", .(member_accession = accession,
+                                           centroid_accession = sub(".*?([^;]+)$", "\\1", target_label),
+                                           cluster_id, search_group)]
+
+# Count KT0 members per centroid (H records only)
+kt0_hit_counts <- members[search_group == "kt", .N, by = centroid_accession]
+setnames(kt0_hit_counts, c("centroid_accession", "kt0_hit_count"))
+
+# Merge centroids with hit counts
+kt0_counts_complete <- merge(centroids[, .(centroid_accession, centroid_from_kt0)],
+                            kt0_hit_counts, by = "centroid_accession", all.x = TRUE)
+kt0_counts_complete[is.na(kt0_hit_count), kt0_hit_count := 0]
+
+# Total kt0 count = centroid (if from kt0) + hit members from kt0
+kt0_counts_complete[, kt0_member_count := as.integer(centroid_from_kt0) + kt0_hit_count]
+
+print("KT0 member counts per centroid (including centroid itself):")
+print(kt0_counts_complete[order(-kt0_member_count), .(centroid_accession, centroid_from_kt0, kt0_hit_count, kt0_member_count)])
+
+# Simplify to just the columns we need
+kt0_counts_complete <- kt0_counts_complete[, .(centroid_accession, kt0_member_count)]
+
+print(paste("Total centroids:", nrow(kt0_counts_complete)))
+print(paste("Centroids with KT0 members:", sum(kt0_counts_complete$kt0_member_count > 0)))
+print(paste("Total KT0 sequences clustered:", sum(kt0_counts_complete$kt0_member_count)))
+```
+
+## Apply Visual Properties
+
+```{r apply_visual_properties, results="console"}
+# Apply visual styling to the graph
+g <- apply_kt_graph_visuals(
+  graph = g,
+  edge_color_by = "identity",
+  color_palette = viridis,
+  edge_width_range = c(0.5, 3),
+  node_size = 8,
+  node_color_by = "family"  # Color nodes by KT family
+)
+
+# Add KT0 member count as a node attribute
+library(igraph)
+node_names <- V(g)$name
+kt0_counts_for_nodes <- kt0_counts_complete$kt0_member_count[match(node_names, kt0_counts_complete$centroid_accession)]
+kt0_counts_for_nodes[is.na(kt0_counts_for_nodes)] <- 0  # Nodes not in clustering data get count of 0
+
+V(g)$kt0_member_count <- kt0_counts_for_nodes
+
+print("Visual properties applied to network")
+print(paste("Added KT0 member counts to", length(V(g)$kt0_member_count), "nodes"))
+print(paste("Nodes with KT0 members:", sum(V(g)$kt0_member_count > 0)))
+
+# Display summary of KT0 member count distribution
+kt0_count_summary <- summary(V(g)$kt0_member_count)
+print("KT0 member count distribution across network nodes:")
+print(kt0_count_summary)
+```
+
+## Network Statistics
+
+```{r network_statistics, results="console"}
+# Get comprehensive network statistics
+stats <- get_kt_graph_stats(g)
+
+# Update graph with community information
+g <- stats$graph_updated
+
+# Display results
+print("=== Network Statistics ===")
+print(paste("Nodes:", stats$basic_stats$nodes))
+print(paste("Edges:", stats$basic_stats$edges))
+print(paste("Density:", stats$basic_stats$density))
+print(paste("Clustering coefficient:", stats$basic_stats$clustering))
+print(paste("Average path length:", stats$basic_stats$avg_path_length))
+  
+print("\n=== Degree Distribution ===")
+print(paste("Average degree:", stats$degree_stats$avg_degree))
+print(paste("Maximum degree:", stats$degree_stats$max_degree))
+print("Top 10 most connected accessions:")
+print(stats$degree_stats$top_nodes)
+
+print("\n=== Community Detection ===")
+print(paste("Communities detected:", stats$community_stats$num_communities))
+print(paste("Modularity:", stats$community_stats$modularity))
+
+print("\n=== Family-based Analysis ===")
+print("Top families by node count:")
+print(head(stats$family_stats$family_counts, 10))
+
+print(paste("Intra-family edges:", stats$family_stats$intra_family_edges))
+print(paste("Inter-family edges:", stats$family_stats$inter_family_edges))
+print(paste("Inter/Intra ratio:", stats$family_stats$inter_intra_ratio))
+
+print("\nTop families by average node degree:")
+print(stats$family_stats$top_families_by_degree)
+
+print("\n=== KT0 Cluster Member Analysis ===")
+kt0_member_stats <- list(
+  total_nodes_with_kt0 = sum(V(g)$kt0_member_count > 0),
+  total_kt0_members = sum(V(g)$kt0_member_count),
+  avg_kt0_per_node = round(mean(V(g)$kt0_member_count), 2),
+  max_kt0_per_node = max(V(g)$kt0_member_count),
+  nodes_with_most_kt0 = names(V(g))[order(V(g)$kt0_member_count, decreasing = TRUE)[1:5]]
+)
+
+print(paste("Nodes with KT0 members:", kt0_member_stats$total_nodes_with_kt0))
+print(paste("Total KT0 sequences represented:", kt0_member_stats$total_kt0_members))
+print(paste("Average KT0 members per node:", kt0_member_stats$avg_kt0_per_node))
+print(paste("Maximum KT0 members in single node:", kt0_member_stats$max_kt0_per_node))
+print("Top 5 nodes by KT0 member count:")
+for(i in 1:5) {
+  node_name <- kt0_member_stats$nodes_with_most_kt0[i]
+  count <- V(g)$kt0_member_count[V(g)$name == node_name]
+  family <- V(g)$family[V(g)$name == node_name]
+  print(paste(" ", i, ". ", node_name, " (", family, "): ", count, " KT0 members", sep = ""))
+}
+```
+
+## Network Visualization
+
+```{r network_plots, results="console"}
+# Create summary plot
+plot_kt_graph_summary(g, stats)
+```
+
+```{r network_main_plot, fig.width=12, fig.height=10, results="console"}
+# Main network plot
+plot_kt_graph(g,
+             main = "KT Protein Alignment Network",
+             show_labels = FALSE,
+             legend_position = "topright")
+```
+
+```{r network_kt0_plot, fig.width=12, fig.height=10, results="console"}
+# Network plot with nodes sized by KT0 member count
+# Create a copy of the graph for this visualization
+g_kt0 <- g
+
+# Scale node sizes based on KT0 member count (minimum size 2, maximum size 15)
+kt0_counts <- V(g_kt0)$kt0_member_count
+if (max(kt0_counts) > 0) {
+  node_sizes <- 2 + (kt0_counts / max(kt0_counts)) * 13
+} else {
+  node_sizes <- rep(5, length(kt0_counts))
+}
+V(g_kt0)$size <- node_sizes
+
+# Create color palette for KT0 counts
+if (max(kt0_counts) > 0) {
+  # Use a color scale from light to dark blue based on KT0 count
+  color_breaks <- seq(0, max(kt0_counts), length.out = 10)
+  node_colors <- colorRampPalette(c("lightgray", "darkblue"))(10)[cut(kt0_counts, breaks = color_breaks, include.lowest = TRUE)]
+  V(g_kt0)$color <- node_colors
+} else {
+  V(g_kt0)$color <- "lightgray"
+}
+
+# Plot the network
+plot(g_kt0,
+     main = "KT Network: Node Size by KT0 Member Count",
+     vertex.label = ifelse(V(g_kt0)$kt0_member_count > quantile(V(g_kt0)$kt0_member_count, 0.95), V(g_kt0)$name, NA),
+     vertex.label.cex = 0.6,
+     vertex.label.color = "black",
+     edge.color = "lightgray",
+     edge.width = 0.5,
+     layout = cbind(V(g_kt0)$x, V(g_kt0)$y))
+
+# Add legend
+if (max(kt0_counts) > 0) {
+  legend("topright",
+         legend = c(paste("Max:", max(kt0_counts), "KT0"),
+                   paste("Min:", min(kt0_counts), "KT0")),
+         col = c("darkblue", "lightgray"),
+         pch = 19,
+         pt.cex = c(2, 0.5),
+         title = "KT0 Members")
+}
+```
+
+## Export to Cytoscape
+
+```{r export_to_cytoscape, eval=FALSE, results="console"}
+# TODO: Calculate a MST to determine the Layout of the graph and save
+#       those X,Y coordinates as the basis of the layout
+# Export to Cytoscape with fallback to CSV files
+export_result <- export_kt_to_cytoscape(
+  graph = g,
+  network_name = "KT_Alignment_Network",
+  collection_name = "KT Analysis",
+  style_name = "KT_Network_Style",
+  edge_color_attribute = "identity"
+)
+
+print(paste("Export method:", export_result$method))
+if (!is.null(export_result$files)) {
+  print("Files created:")
+  print(export_result$files)
+}
+
+```
+
+## Import M1 Pro File
+```{r import_m1_pro, results="console"}
+#pro.df <- read_pro('inst/extdata/kt1.M1_Logan.pro')
+
+#View(pro.df[ pro.df$sseqid == 'kt1.kt;M1;Saccharomyces_cerevisiae;NP_044402.1', ])
+
+
+```
+
+
+## TODO
+
+### In Progress 🔄
+- [ ] Install and load Biostrings package for sequence analysis
+- [ ] Add error handling for missing data files
+- [ ] Create alignment quality distribution plots
+
+### Future Enhancements 🔮
+- [ ] Add statistical tests for biodiversity comparisons
+- [ ] Implement phylogenetic analysis pipeline
+- [ ] Analyze reciprocal best hits from alignment data
+- [ ] Create interactive network visualizations with plotly/visNetwork
+- [ ] Add sequence similarity clustering validation
+- [ ] Implement protein domain analysis integration
+- [ ] Add comparative genomics analysis functions
+
+## Node Degree Analysis for MLus Centroids
+
+```{r mlus_degree_histogram, fig.width=10, fig.height=6, results="console"}
+# Extract node information from the network graph
+node_data <- data.frame(
+  accession = V(g)$name,
+  family = V(g)$family,
+  degree = degree(g),
+  kt0_member_count = V(g)$kt0_member_count,
+  stringsAsFactors = FALSE
+)
+
+# Check available families
+print("Available KT families in network:")
+print(sort(table(node_data$family), decreasing = TRUE))
+
+# Use all families present in the data
+all_families <- unique(node_data$family)
+all_families <- all_families[!is.na(all_families) & all_families != ""]
+
+# Filter out families with very few nodes (less than 3) for cleaner visualization
+family_counts_all <- table(node_data$family)
+families_with_enough_nodes <- names(family_counts_all[family_counts_all >= 3])
+
+# Use families with sufficient representation
+family_nodes <- node_data[node_data$family %in% families_with_enough_nodes, ]
+
+print(paste("Total families in data:", length(all_families)))
+print(paste("Families with ≥3 nodes (shown in plot):", length(families_with_enough_nodes)))
+
+# Print counts per family (sorted by count)
+family_counts <- table(family_nodes$family)
+family_counts_sorted <- sort(family_counts, decreasing = TRUE)
+print("Node counts by family (top 15):")
+print(head(family_counts_sorted, 15))
+
+# Create faceted histogram comparing degree distributions across ALL families
+if (nrow(family_nodes) > 0) {
+  # Calculate mean degree for each family for vertical lines
+  family_means <- family_nodes %>%
+    group_by(family) %>%
+    summarise(mean_degree = mean(degree), .groups = 'drop')
+
+  # Determine optimal number of columns based on number of families
+  num_families <- length(families_with_enough_nodes)
+  ncol_facets <- if (num_families <= 6) 2 else if (num_families <= 12) 3 else 4
+
+  family_histogram <- ggplot(family_nodes, aes(x = degree)) +
+    geom_histogram(bins = 12,
+                   fill = "steelblue",
+                   alpha = 0.7,
+                   color = "black") +
+    geom_vline(data = family_means,
+               aes(xintercept = mean_degree),
+               color = "red",
+               linetype = "dashed",
+               size = 0.6) +
+    facet_wrap(~ family, scales = "free_y", ncol = ncol_facets) +
+    labs(
+      title = "Node Degree Distribution Across All KT Families",
+      x = "Node Degree",
+      y = "Count of Centroid Nodes",
+      subtitle = paste("Showing", length(families_with_enough_nodes),
+                      "families with ≥3 nodes each")
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 12),
+      axis.title = element_text(size = 10),
+      axis.text = element_text(size = 8),
+      strip.text = element_text(size = 9, face = "bold"),
+      panel.spacing = unit(0.5, "lines")
+    )
+
+  print(family_histogram)
+
+  # Print detailed statistics for all families (sorted by mean degree)
+  print("\n=== All Family Degree Statistics (sorted by mean degree) ===")
+  family_stats <- family_nodes %>%
+    group_by(family) %>%
+    summarise(
+      count = n(),
+      min_degree = min(degree),
+      max_degree = max(degree),
+      mean_degree = round(mean(degree), 2),
+      median_degree = median(degree),
+      sd_degree = round(sd(degree), 2),
+      .groups = 'drop'
+    ) %>%
+    arrange(desc(mean_degree))
+
+  print(family_stats)
+
+  # Show top degree node for each family (condensed view)
+  print("\n=== Highest degree node per family ===")
+  top_per_family <- family_nodes %>%
+    group_by(family) %>%
+    arrange(desc(degree)) %>%
+    slice_head(n = 1) %>%
+    select(family, accession, degree, kt0_member_count) %>%
+    arrange(desc(degree))
+
+  print(top_per_family)
+
+  # Create a second plot focusing on the most populous families
+  top_families <- names(head(family_counts_sorted, 8))
+  if (length(top_families) > 0) {
+    top_family_nodes <- family_nodes[family_nodes$family %in% top_families, ]
+
+    print(paste("\n=== Creating detailed view for top", length(top_families), "most populous families ==="))
+
+    top_family_means <- top_family_nodes %>%
+      group_by(family) %>%
+      summarise(mean_degree = mean(degree), .groups = 'drop')
+
+    top_families_plot <- ggplot(top_family_nodes, aes(x = degree)) +
+      geom_histogram(bins = 15,
+                     fill = "darkgreen",
+                     alpha = 0.7,
+                     color = "black") +
+      geom_vline(data = top_family_means,
+                 aes(xintercept = mean_degree),
+                 color = "red",
+                 linetype = "dashed",
+                 size = 0.8) +
+      facet_wrap(~ family, scales = "free_y", ncol = 2) +
+      labs(
+        title = "Detailed View: Top 8 Most Populous KT Families",
+        x = "Node Degree",
+        y = "Count of Centroid Nodes",
+        subtitle = "Higher resolution view of families with most representatives"
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 12),
+        axis.title = element_text(size = 12),
+        axis.text = element_text(size = 10),
+        strip.text = element_text(size = 11, face = "bold")
+      )
+
+    print(top_families_plot)
+  }
+
+} else {
+  print("No family nodes found with sufficient representation.")
+  print("All available families:")
+  print(sort(unique(node_data$family)))
+}
+```
+
+## M28 Family Investigation
+
+```{r m28_investigation, results="console"}
+print("=== Investigating M28 Family Representation ===")
+
+# Check 1: Is M28 in the original KT1 FASTA data?
+print("\n1. Checking KT1 FASTA data for M28/M28-like families:")
+kt1_families <- table(kt1.df$kt_family)
+m28_related <- kt1_families[grepl("M28|m28", names(kt1_families), ignore.case = TRUE)]
+if (length(m28_related) > 0) {
+  print("Found M28-related families in KT1:")
+  print(m28_related)
+} else {
+  print("No M28 family found in KT1 FASTA data")
+  print("All families in KT1 (sorted by count):")
+  print(sort(kt1_families, decreasing = TRUE))
+}
+
+# Check 2: Is M28 in the KT0 data?
+print("\n2. Checking KT0 FASTA data for M28:")
+kt0_families <- table(kt0.df$kt_family)
+m28_related_kt0 <- kt0_families[grepl("M28|m28", names(kt0_families), ignore.case = TRUE)]
+if (length(m28_related_kt0) > 0) {
+  print("Found M28-related families in KT0:")
+  print(m28_related_kt0)
+} else {
+  print("No M28 family found in KT0 FASTA data")
+}
+
+# Check 3: Look for similar names that might be M28
+print("\n3. Looking for families with 'M' and numbers that might be M28:")
+all_families_combined <- c(names(kt1_families), names(kt0_families))
+m_families <- unique(all_families_combined[grepl("M[0-9]", all_families_combined)])
+print("Families starting with M followed by numbers:")
+print(sort(m_families))
+
+# Check 4: Are there any M28 sequences in clustering data?
+print("\n4. Checking clustering data for M28:")
+if (exists("kt1.uclust")) {
+  # Extract family information from clustering data if available
+  clustering_accessions <- unique(c(kt1.uclust$accession, kt1.uclust$target_label))
+
+  # Check if any M28 accessions in clustering
+  m28_in_clustering <- any(grepl("M28|m28", clustering_accessions, ignore.case = TRUE))
+  print(paste("M28 sequences in clustering data:", m28_in_clustering))
+
+  if (m28_in_clustering) {
+    m28_cluster_seqs <- clustering_accessions[grepl("M28|m28", clustering_accessions, ignore.case = TRUE)]
+    print("M28 sequences found:")
+    print(head(m28_cluster_seqs))
+  }
+}
+
+# Check 5: Are there M28 sequences in alignment data?
+print("\n5. Checking alignment data for M28:")
+if (exists("kt1.alignments")) {
+  alignment_accessions <- unique(c(kt1.alignments$query_accession, kt1.alignments$subject_accession))
+  m28_in_alignments <- any(grepl("M28|m28", alignment_accessions, ignore.case = TRUE))
+  print(paste("M28 sequences in alignment data:", m28_in_alignments))
+
+  if (m28_in_alignments) {
+    m28_align_seqs <- alignment_accessions[grepl("M28|m28", alignment_accessions, ignore.case = TRUE)]
+    print("M28 sequences in alignments:")
+    print(head(m28_align_seqs))
+  }
+}
+
+# Check 6: Are there M28 nodes in the network graph?
+print("\n6. Checking network graph for M28:")
+if (exists("g")) {
+  graph_accessions <- V(g)$name
+  graph_families <- V(g)$family
+
+  m28_in_graph <- any(grepl("M28|m28", graph_accessions, ignore.case = TRUE)) ||
+                  any(grepl("M28|m28", graph_families, ignore.case = TRUE))
+  print(paste("M28 sequences in network graph:", m28_in_graph))
+
+  if (m28_in_graph) {
+    m28_graph_nodes <- graph_accessions[grepl("M28|m28", graph_accessions, ignore.case = TRUE)]
+    m28_family_nodes <- which(grepl("M28|m28", graph_families, ignore.case = TRUE))
+    print("M28 nodes in graph:")
+    if (length(m28_graph_nodes) > 0) print(head(m28_graph_nodes))
+    if (length(m28_family_nodes) > 0) print(paste("Family nodes:", length(m28_family_nodes)))
+  }
+}
+
+# Check 7: Look for case variations or alternative naming
+print("\n7. Looking for alternative M28 naming patterns:")
+all_families_unique <- unique(c(names(kt1_families), names(kt0_families)))
+potential_m28 <- all_families_unique[grepl("28|M.*28|m.*28", all_families_unique, ignore.case = TRUE)]
+if (length(potential_m28) > 0) {
+  print("Families containing '28':")
+  print(potential_m28)
+} else {
+  print("No families containing '28' found")
+}
+
+# Check 8: Display family parsing from sample sequences
+print("\n8. Sample family parsing to check format:")
+if (nrow(kt1.df) > 0) {
+  print("Sample KT1 headers and parsed families:")
+  sample_kt1 <- head(kt1.df[, c("kt_family", "kt_family")], 10)
+  print(sample_kt1)
+}
+
+print("\n=== Summary ===")
+print("If M28 is not found in any of the above checks, it likely means:")
+print("1. M28 sequences are not present in the source FASTA files")
+print("2. M28 sequences failed quality filters during processing")
+print("3. M28 is named differently than expected")
+print("4. M28 sequences didn't form alignments meeting the criteria")
+print("5. M28 sequences are present but didn't become cluster centroids")
+```
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
