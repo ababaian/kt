@@ -1,0 +1,1 @@
+[2026-04-04 22:44:56] EXECUTION START - Query: M28.it1.alpha_trim.fa, Database: kt1.M28.ORF50.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_224456

@@ -23,9 +23,63 @@ OUTPUT_DIR="$BASE_DIR/output"
 RESULTS_DIR="$OUTPUT_DIR/hmmer_simple_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$RESULTS_DIR"
 
+# Global log file for execution history
+GLOBAL_LOG="logs.txt"
+
 log() {
     echo "[$(date +'%H:%M:%S')] $1" | tee -a "$RESULTS_DIR/pipeline.log"
 }
+
+# Function to log to both STDOUT and global logs.txt
+log_global() {
+    echo "$1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" >> "$GLOBAL_LOG"
+}
+
+# Function to display and log run information
+display_run_info() {
+    local start_time="$1"
+
+    echo "============================================================================="
+    echo "HMMER Search Pipeline Execution"
+    echo "============================================================================="
+    echo "Execution started: $start_time"
+    echo "Working directory: $(pwd)"
+    echo ""
+    echo "RUN PARAMETERS:"
+    echo "  Query file: $QUERY_FILE"
+    echo "  Database file: $DATABASE_FILE"
+    echo "  E-value cutoff: $E_VALUE_CUTOFF"
+    echo "  Max hits to align: $MAX_HITS_TO_ALIGN"
+    echo "  CPU cores: $CPU_CORES"
+    echo "  Results directory: $RESULTS_DIR"
+    echo ""
+    echo "INPUT FILES AND MD5SUMS:"
+
+    if [[ -f "$INPUT_DIR/$QUERY_FILE" ]]; then
+        local query_md5=$(md5sum "$INPUT_DIR/$QUERY_FILE" | cut -d' ' -f1)
+        echo "  $INPUT_DIR/$QUERY_FILE: $query_md5"
+    else
+        echo "  $INPUT_DIR/$QUERY_FILE: FILE NOT FOUND"
+    fi
+
+    if [[ -f "$INPUT_DIR/$DATABASE_FILE" ]]; then
+        local db_md5=$(md5sum "$INPUT_DIR/$DATABASE_FILE" | cut -d' ' -f1)
+        echo "  $INPUT_DIR/$DATABASE_FILE: $db_md5"
+    else
+        echo "  $INPUT_DIR/$DATABASE_FILE: FILE NOT FOUND"
+    fi
+
+    echo "============================================================================="
+    echo ""
+
+    # Log to global logs.txt
+    log_global "EXECUTION START - Query: $QUERY_FILE, Database: $DATABASE_FILE, E-value: $E_VALUE_CUTOFF, Results: $RESULTS_DIR"
+}
+
+# Display run information and log execution
+START_TIME=$(date +'%Y-%m-%d %H:%M:%S')
+display_run_info "$START_TIME"
 
 log "Starting simple HMMER pipeline"
 log "Results directory: $RESULTS_DIR"
@@ -152,3 +206,18 @@ EOF
 log "Pipeline complete!"
 log "Summary: cat $RESULTS_DIR/SUMMARY.txt"
 log "Output MSA: $RESULTS_DIR/output_msa.fa"
+
+# Log completion to global logs.txt
+END_TIME=$(date +'%Y-%m-%d %H:%M:%S')
+log_global "EXECUTION COMPLETE - Total hits: $total_hits, Significant hits: $significant_hits, MSA sequences: $msa_seqs, End time: $END_TIME"
+
+echo ""
+echo "============================================================================="
+echo "EXECUTION COMPLETE"
+echo "============================================================================="
+echo "Execution completed: $END_TIME"
+echo "Results directory: $RESULTS_DIR"
+echo "Total hits found: $total_hits"
+echo "Significant hits: $significant_hits"
+echo "Final MSA sequences: $msa_seqs"
+echo "============================================================================="
