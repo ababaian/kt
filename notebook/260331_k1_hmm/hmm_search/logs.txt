@@ -1,0 +1,10 @@
+[2026-04-04 22:44:56] EXECUTION START - Query: M28.it1.alpha_trim.fa, Database: kt1.M28.ORF50.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_224456
+[2026-04-04 22:54:05] EXECUTION START - Query: M28.it1.alpha_trim.fa, Database: kt1.M28.ORF50.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_225405
+[2026-04-04 22:54:55] EXECUTION START - Query: M28.it1.alpha_trim.fa, Database: kt1.M28.ORF50.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_225455
+[2026-04-04 22:56:11] EXECUTION START - Query: M28.it1.alpha_trim.fa, Database: kt1.M1.ORF100.id99s, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_225611
+[2026-04-04 22:56:36] EXECUTION START - Query: M28.it1.alpha_trim.fa, Database: kt1.M1.ORF100.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_225636
+[2026-04-04 23:19:44] EXECUTION START - Query: kt1.M1.ORF100.id99s.fa, Database: K1.abg.msa.it1.build.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_231944
+[2026-04-04 23:59:07] EXECUTION START - Query: kt1.M1.ORF100.id99s.fa, Database: K1.abg.msa.it1.build.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_235907
+[2026-04-04 23:59:55] EXECUTION START - Query: K1.abg.msa.it1.build.fa, Database: kt1.M1.ORF100.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260404_235955
+[2026-04-05 00:00:06] EXECUTION START - Query: K1.abg.msa.it2.build.fa, Database: kt1.M1.ORF100.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260405_000006
+[2026-04-05 00:01:16] EXECUTION START - Query: K1.abg.msa.it2.build.fa, Database: kt1.M1.ORF100.id99s.fa, E-value: 0.0001, Results: ./output/hmmer_simple_20260405_000116
